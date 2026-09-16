@@ -1,164 +1,116 @@
-# Tatu Edge MLOps
+<p align="center">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-6366f1?style=flat-square" alt="License">
+  </a>
+  <a href="https://www.python.org/downloads/">
+    <img src="https://img.shields.io/badge/python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
+  </a>
+  <img src="https://img.shields.io/badge/dependencies-0-22c55e?style=flat-square" alt="Zero dependencies">
+  <img src="https://img.shields.io/badge/OS-Windows%2011%20%2B%20WSL2-fuchsia?style=flat-square" alt="Windows + WSL2">
+</p>
 
-Resilient local MLOps for training on the edge: a Windows host running the
-trainer inside WSL, hybrid NVMe/HDD mounts, and a 12GB GPU that is shared
-with the desktop.
+<h1 align="center">Roger — Resilient Local MLOps</h1>
 
-These tools assume nobody is awake at 03:00. Silence means healthy, and every
-alarm has to survive a positive measurement before it fires.
+<p align="center"><strong>The trench engineering behind 72-hour unattended GPU training runs</strong> — deterministic critic, watchdogs that act, and crash-safe I/O for WSL2/edge boxes.</p>
 
-**Model-agnostic.** Nothing here knows about a specific architecture,
-tokenizer or dataset. It is pure operational machinery: it watches a training
-loop, refuses to trust self-reported progress, and brings the run back from a
-checkpoint when the platform under it fails silently.
+> 🌐 **English** · [🇧🇷 Português](README.pt-BR.md)
 
----
+Training small models on a gaming PC running Linux via WSL2 does not fail loudly. It fails by going quiet: a silent 0% GPU utilization, a checkpoint that exists but is 3 bytes short, a critic that grades 0 because the bridge hiccuped, a loop that "converges" over a defect that already flapped back. **Roger is the set of guards that make each of those failure modes loud, recoverable, or impossible** — zero dependencies, pure Python, model-agnostic.
 
-## The problem
+## The failure modes, and the guard that kills each
 
-Long training runs on Windows + WSL do not fail loudly. They fail in ways
-that look exactly like health:
-
-| Failure mode | Why it fools you | What it costs |
+| Symptom (silent unless guarded) | Guard | Module |
 |---|---|---|
-| **Silent trainer death** | `pgrep` under load can return empty for a process that is alive; a translated `wsl.exe` error can arrive with `rc=0` | a watchdog "resurrects" a run that never died, or misses one that did |
-| **CPU zombie** | State `R`, CPU ticking, GPU context open — zero progress, same Python line for hours | 5 hours of a 12GB card doing nothing |
-| **Desiccated GPU-PV channel** | `nvidia-smi` reports 97-100% util at full clocks, py-spy shows frames advancing, a binary CUDA test passes in <1s — yet the channel runs at ~2% throughput | a 12-minute step becomes 2h15; a 20-minute checkpoint load becomes 20min |
-| **9p/drvfs truncation** | A large tensor read through `/mnt/<drive>` fails with `ENOMEM` under host RAM pressure and leaves a destination whose **size still matches** the resume check | resume loads half a model and NaNs an hour later |
-| **Masked OOM / sysmem fallback** | Orphan CUDA contexts from earlier crashes hold VRAM at the driver layer; the trainer quietly spills to system RAM over PCIe and *keeps making progress* | a 3-4x throughput collapse read as "the model is just slower now" |
-| **Step regression** | A boot clears `/tmp`, the launcher falls back to a scratch copy, and training resumes hundreds of steps behind — perfectly healthy telemetry | hundreds of silent steps of lost work |
-| **Crash loop on the same checkpoint** | A resume-safe launcher is a good idea until the fault is in the host; then it resurrects from the same step forever, and every resurrection looks like progress | an overnight loop of identical deaths |
-| **Phantom self-report** | An agent-written report claims `step 999` while the log says `step 60` | a whole run believed complete that never was |
-| **Relaunch race** | Two watchdogs relaunch the same crash; two writers hit one checkpoint directory | checkpoint corruption at the next save |
+| NVML bridge `found a PCI device but no GPUs found` after sleep/hibernate; guest looks healthy forever | Host-side cure: probe via the bridge, surgical `wsl --shutdown` + relaunch, arbitration of real TFLOPS before trusting the channel | `tatu/gpu_cure.py`, `scripts/cuda_tflops_bench.py` |
+| Trainer process alive but wedged: 100% CPU, log frozen, GPU 0 | Zombie-kill with relaunch budget; step-regression detection; crash-loop breaker | `tatu/night_watch.py` |
+| Host reports "2 GB used by WSL" — OOM masked in shared memory | Host truth probe: enumerate VM processes, sum WS, attribute per-process VRAM | `scripts/host_vram_probe.ps1` |
+| Checkpoint truncated in flight on 9p/drvfs and resumes past garbage bytes | `.part` + fsync + read-back verify + `os.replace`; quarantine outside the resolver glob | `tatu/safe_io.py`, `scripts/quarantine.py` |
+| Critic grades via HTTP/JSON: fragile, auth walls, timeouts | File IPC on ext4 with flock, one-shot mode, fail-open verdicts, append-only ledger | `tatu/roger_tatu.py`, `tatu/roger_client.py` |
+| An agent loop inherits yesterday's 100/100 because a state file outlived the campaign | Campaign fingerprint (git HEAD) + state reconciliation + regression detection | `tatu/hygiene.py` |
+| Audited repo's tool output injects instructions into your agent | Untrusted-data quarantine (fences, control chars, truncation) | `tatu/hygiene.py` |
 
-Separately: file-based I/O across the WSL boundary (`drvfs`/`9p`) is slow and
-lossy in exactly the situations where you are writing the most data.
-
-## The solution
-
-Three pieces, deliberately boring:
-
-1. **Deterministic critic (`tatu/roger_tatu.py`) — the "Roger Critic".**
-   It judges a run against the **real log**, never against a summary of it.
-   It recomputes the learning rate the schedule *should* show at the observed
-   step and compares it to the logged LR — that single check catches the dead
-   LR coma, the cosine-blowup, and the decimal-comma typo (`lr=0,00005`
-   parses as `0.0` in a shell). It scores 0-100 and returns exactly one of
-   `continue` / `investigate` / `escalate`. It **fails open**: a broken critic
-   degrades to `continue`, never to a blocked run.
-
-2. **Asynchronous file IPC over ext4 (`tatu/roger_client.py`).**
-   The training loop writes a JSON request into a spool and never blocks on a
-   daemon: no HTTP server, no sockets, no shared-memory library, nothing that
-   has to survive a reboot of a guest. Requests land in
-   `~/.tatu/roger/requests/`, answers in `responses/`, and every decision is
-   appended to `ledger.jsonl`. A client timeout yields a `continue` verdict —
-   the watchdog can be down and training still cannot wedge.
-   This is the same discipline applied to checkpoint I/O: canonical files on
-   ext4, the slow mount treated as an advisory mirror, never as the source of
-   truth (`tatu/safe_io.py`, `deploy/launch_train.sh`).
-
-3. **Watchdogs that actually cure (`tatu/night_watch.py`, `tatu/gpu_cure.py`).**
-   Not alert-only. Dead without an end banner → relaunch resume-safe.
-   Wedged → kill the process group, relaunch. Channel degraded → `wsl
-   --shutdown`, re-bench, relaunch, and *refuse* to relaunch into a GPU that
-   is still broken. Every action requires a positive measurement: an
-   unreadable probe is never evidence of death.
-
-## Layout
+## Architecture
 
 ```
-tatu/
-  config.py          all paths from env; zero personal paths in code
-  roger_tatu.py      deterministic critic + flock IPC daemon (fail-open)
-  roger_client.py    submit/poll client with fail-open timeout
-  night_watch.py     in-guest watchdog: zombie, wedge, step regression, crash loop
-  gpu_cure.py        host watchdog: GPU-PV channel cure (wsl --shutdown)
-  safe_io.py         atomic publish, .part + size + trailer verify, mirror
-scripts/
-  cuda_tflops_bench.py  throughput referee (catches the 2%-channel state)
-  quarantine.py      move a bad checkpoint OUT OF THE GLOB; verify before trusting
-  host_vram_probe.ps1    per-process VRAM attribution from the Windows side
-deploy/
-  roger-tatu.service     systemd **user** unit for the critic daemon
-  keepalive.service      systemd user unit for the relaunch loop
-  keepalive.sh           guest-side 24/7 relaunch loop (completion is parsed, not grepped)
-  launch_train.sh        reference launcher: flock + pgrep + VRAM gate + 9p staging
-tests/
-  test_roger_tatu.py     8 scenarios against the real critic, no GPU needed
-docs/
-  diagnosis-decision-table.md  which probe answers which question
-examples/
-  train_with_roger.py    minimal trainer wired to the critic
+ trainer (any framework, any machine)
+   |  atomic + verified checkpoints ....... tatu/safe_io.py
+   |  ask "should I keep going?" (non-blocking, 90s fail-open)
+   v
+ Roger critic daemon  <── file IPC, flock on ext4, never 9p/HTTP
+   |  deterministic score 0-100 + verdict {continue|watch|investigate|escalate}
+   |  ledger.jsonl (append-only evidence)
+   v
+ night_watch (guest) — zombie/step-regression/crash-loop -> kill + relaunch
+ gpu_cure   (host)  — NVML/dxgkrnl bridge cure, surgical WSL restart
+ keepalive (guest) — resume-safe relaunch loop (systemd --user)
 ```
 
-## Quick start
+The critic **never blocks training** — every dependency fails open with an alert. Roger's opinion is advisory by contract: it gates the *campaign*, not the *epoch*.
+
+## Installation
+
+No dependencies. Python 3.10+ on each side of the bridge.
 
 ```bash
-# 1. critic daemon (inside the Linux/WSL guest)
-mkdir -p ~/.tatu/roger
-cp tatu/*.py ~/.tatu/roger/
-export TATU_HOME=$HOME/.tatu TATU_TRAIN_LOG=$HOME/.tatu/train.log TATU_PROC=run_train
-python3 ~/.tatu/roger/roger_tatu.py --daemon &      # or install the systemd user unit
-
-# 2. from the training loop, every N steps
-python3 -m tatu.roger_client --step 600 --loss 4.20 --grad 120 \
-    --lr 2.5e-5 --vram 9.9 --tok 430 --question "checkpoint 600"
-
-# 3. prove the critic is sane before trusting it
-python3 tests/test_roger_tatu.py            # 8/8 PASS, no GPU
-
-# 4. is the GPU channel actually healthy?
-python3 scripts/cuda_tflops_bench.py --min-tflops 2.0
+git clone <this-repo> && cd roger-mlops
+cp .env.example ~/.config/roger.env   # edit paths to your layout
+export TATU_HOME=$HOME/.tatu TATU_TRAIN_LOG=$HOME/.tatu/train.log
+python3 -m unittest discover -s tests -v   # all green before you trust it
 ```
 
-Wiring the critic into a training loop is ~10 lines and never raises:
-see [`examples/train_with_roger.py`](examples/train_with_roger.py).
+Systemd user units live in `deploy/`:
 
-## Configuration
+```bash
+mkdir -p ~/.config/systemd/user
+cp deploy/roger-tatu.service deploy/keepalive.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now roger-tatu keepalive
+```
 
-Every path and threshold comes from the environment — see
-[`tatu/config.py`](tatu/config.py) for the full contract. The important ones:
+## Commands
 
-| Variable | Meaning | Default |
-|---|---|---|
-| `TATU_HOME` | IPC spool + daemon state root | `~/.tatu` |
-| `TATU_TRAIN_LOG` | append-only training log the critic reads | `$TATU_HOME/train.log` |
-| `TATU_PROC` | cmdline pattern of the trainer process | `run_train` |
-| `TATU_PERSIST` | canonical ext4 checkpoint dir | `/tmp/tatu_ckpt_persist` |
-| `TATU_MIRROR` | optional second-drive mirror (written last, verified apart) | off |
-| `TATU_LAUNCHER` | resume-safe launch script the watchdogs may call | — |
-| `TATU_TOTAL_STEPS` / `TATU_LR` / `TATU_WARMUP` / `TATU_END_LR` | the schedule the critic recomputes | `2000 / 5e-5 / 50 / 5e-8` |
-| `TATU_GATE` | score threshold for `investigate` | `85` |
-| `TATU_BENCH_MIN` | TFLOPS below which the GPU-PV channel is considered degraded | `2.0` |
+| Command | What it does |
+|---|---|
+| `python3 tatu/roger_tatu.py --daemon` | Run the critic daemon (file IPC, flock'd spool) |
+| `python3 tatu/roger_tatu.py --once` | Drain pending requests once (cron-friendly, no daemon) |
+| `python3 tatu/roger_client.py ask --project NAME --log PATH [--dry-run]` | Ask for a verdict; prints `VERDICT=`/`SCORE=`; fail-open |
+| `python3 tatu/night_watch.py --once` | One zombie/regression/loop check; kills + relaunches |
+| `python3 tatu/gpu_cure.py --probe-only` | Classify the GPU bridge state without curing |
+| `python3 tatu/hygiene.py` | Self-test of every orchestrator guard |
+| `python3 scripts/quarantine.py move CKPT_DIR CKPT` | Move a suspect checkpoint out of the resolver glob |
+| `python3 scripts/cuda_tflops_bench.py` | Measure real TFLOPS (the GPU-throughput referee) |
+| `pwsh scripts/host_vram_probe.ps1` | Host-side truth: WSL VM working set + per-process VRAM |
+| `bash deploy/launch_train.sh` | Reference resume-safe launcher (flock + pgrep double guard) |
 
-The log parser accepts two shapes out of the box (single `Loss:` line, and a
-two-term `P:/S:/Total:` line) — extend `RE_STEP_*` in `roger_tatu.py` for your
-own format. The critic only needs step, loss, grad norm, LR, tok/s and VRAM.
+## Critic contract
 
-## Design rules these files follow
+Requests and verdicts are JSON across `request_*.json` files (schema in
+`tatu/roger_tatu.py`); the deterministic checks cover the curves a human
+would eyeball at 03:00 — LR vs the cosine schedule you declared, gradient
+norm blowups, loss velocity, field drift (e.g. `|A_log|`), tok/s, VRAM,
+log staleness, process presence — each with weights and a gate. If you plug
+a critic into your own loop, it must print `SCORE=<n>` / `GAPS=<a|b>` /
+`DETAIL=<...>`; `hygiene.parse_critic_output()` refuses to grade a critic
+that broke the contract instead of silently scoring 0.
 
-1. **Fail open.** A watchdog that can block training is worse than no watchdog.
-2. **Measure or stay quiet.** Every destructive action needs a sentinel-backed
-   positive measurement. Empty output means the probe failed, not that the
-   process died.
-3. **Judge reality, not reports.** The log, the checkpoint bytes and the
-   process table are evidence; a claimed step number is a suspicion.
-4. **Never bake in a path.** Person, drive letter, hostname and chat ID go in
-   the environment. The code is portable because it is anonymous.
-5. **Size is not proof.** A file is valid when its size, trailer and (for a
-   resume target) load agree.
-6. **One launcher owns the race.** flock *and* pgrep, `flock -n` always, so a
-   second relauncher aborts instead of queuing.
-7. **Alerts must be rate-limited and attributable.** Per-category cooldown,
-   plus a dedicated timestamped incident log so a fix can be audited later.
+## Why files, not sockets
 
-## What this is not
+On a hybrid-storage laptop under training load, the Windows↔WSL bridges lie:
+directory metadata reads raise I/O errors, `wsl.exe` output arrives empty,
+ports on mirrored localhost belong to `wslrelay` even when the service is
+dead, and `df` through 9p reports cached numbers. A request written to ext4
+with flock and fsync either exists complete or does not exist — there is no
+third state. That property is the whole design.
 
-Not a job scheduler, experiment tracker or hyperparameter search. Not a
-cluster tool — it targets one box, one GPU, one long run. Not a substitute for
-checkpoint discipline: every tool here assumes your launcher can resume and
-your saves are the thing you would want to keep.
+## Tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Covers: verdict weights and gate, malformed-request fail-open, duplicate
+daemon refusal, quarantine bypass attempts, inherited-grade campaign
+archival, flapping-gap regression, `0 passed` environment rounds,
+checkpoint-verify against truncation, and the launcher's done-marker parse.
 
 ## License
 
