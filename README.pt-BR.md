@@ -119,6 +119,15 @@ herdada, gap fluctuante (regressão), rodada de ambiente `0 passed`,
 verificação de checkpoint contra truncamento e o parse do marcador de
 conclusão do launcher.
 
+## A família Roger
+
+Roger começou como uma coisa só num projeto só e virou uma família de dois repositórios:
+
+- **roger-mlops** (este repo) — as guardas de *runtime* para treino longo de GPU: daemon crítico, watchdogs, cura da ponte, I/O à prova de queda.
+- **roger-loop** — o motor do *lado do agente*: um orquestrador de test-loop config-driven (fingerprint de campanha, workers com orçamento, debate de zona cinzenta, detecção de regressão) construído sobre o mesmo contrato `SCORE=/GAPS=/DETAIL=` usado aqui.
+
+Ambos agnósticos de modelo, sem dependências, e compartilham o contrato de veredito — um crítico escrito para um se encaixa no outro.
+
 ## Licença
 
-MIT — ver [LICENSE](LICENSE).
+MIT — veja [LICENSE](LICENSE).

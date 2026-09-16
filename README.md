@@ -122,6 +122,15 @@ daemon refusal, quarantine bypass attempts, inherited-grade campaign
 archival, flapping-gap regression, `0 passed` environment rounds,
 checkpoint-verify against truncation, and the launcher's done-marker parse.
 
+## The Roger family
+
+Roger started as one thing in one project and grew into a family of two repositories:
+
+- **roger-mlops** (this repo) — the *runtime* guards for long GPU training: critic daemon, watchdogs, bridge cure, crash-safe I/O.
+- **roger-loop** — the *agent-side* engine: a config-driven test-loop orchestrator (campaign fingerprinting, budgeted workers, gray-zone debate, regression detection) built on the same `SCORE=/GAPS=/DETAIL=` contract used here.
+
+Both are model-agnostic, dependency-free, and share the verdict contract so a critic written for one plugs into the other.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
