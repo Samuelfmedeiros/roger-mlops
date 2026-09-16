@@ -1,0 +1,10 @@
+# Shell/scripts that run INSIDE the Linux guest must keep LF on every
+# checkout — CRLF in a .sh gives `bash\r: command not found` at 03:00.
+*.sh    text eol=lf
+*.service text eol=lf
+*.py    text eol=lf
+*.md    text
+*.json  text eol=lf
+.env.example text eol=lf
+.gitignore text eol=lf
+LICENSE text eol=lf
