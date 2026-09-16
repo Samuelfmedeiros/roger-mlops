@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Roger Tatu — deterministic training critic + file-based IPC daemon.
+"""Roger — deterministic training critic + file-based IPC daemon.
 
 Two roles, one file:
 
@@ -17,10 +17,10 @@ Golden rule: FAIL-OPEN. Any broken dependency degrades to ``continue``.
 The critic must never wedge the run it is watching — a silent critic is a
 bug, a blocking critic is an incident.
 
-Environment (see tatu/config.py):
-    TATU_ROOT, TATU_LOG, TATU_PERSIST, TATU_PROC,
-    TATU_LR, TATU_WARMUP, TATU_TOTAL_STEPS, TATU_END_LR, TATU_GATE,
-    TATU_VRAM_MAX, TATU_GRAD_MAX, TATU_AD_MAX, TATU_LOG_MAX_AGE
+Environment (see roger/config.py):
+    ROGER_ROOT, ROGER_LOG, ROGER_PERSIST, ROGER_PROC,
+    ROGER_LR, ROGER_WARMUP, ROGER_TOTAL_STEPS, ROGER_END_LR, ROGER_GATE,
+    ROGER_VRAM_MAX, ROGER_GRAD_MAX, ROGER_AD_MAX, ROGER_LOG_MAX_AGE
 """
 import json
 import math
@@ -36,7 +36,7 @@ try:
 except ImportError:  # executed as a plain script
     import config as C
 
-BASE = os.path.expanduser(C.cfg("ROOT", os.path.expanduser("~/.tatu/roger")))
+BASE = os.path.expanduser(C.cfg("ROOT", os.path.expanduser("~/.roger/roger")))
 if BASE.endswith("roger"):
     REQ = os.path.join(BASE, "requests")
     RESP = os.path.join(BASE, "responses")
@@ -50,7 +50,7 @@ else:
     LEDGER = os.path.join(_r, "ledger.jsonl")
 
 LOG = C.cfg("LOG", os.path.join(BASE, "train.log"))
-PERSIST = C.cfg("PERSIST", "/tmp/tatu_ckpt_persist")
+PERSIST = C.cfg("PERSIST", "/tmp/roger_ckpt_persist")
 PROC_PATTERN = C.cfg("PROC", "run_train")
 
 TRAIN_LR = float(C.cfg("LR", "5e-5"))
@@ -238,7 +238,7 @@ def evaluate(req):
                 "log_age_min": round(log_age / 60, 1)}
     return {"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "request_id": req.get("id"),
             "score": score, "action": action, "findings": findings, "hard": hard,
-            "telemetry": tele, "roger": "Roger Tatu v1"}
+            "telemetry": tele, "roger": "Roger v1"}
 
 
 def ledger_write(entry):
@@ -270,7 +270,7 @@ def handle_file(path):
         verdict = {"request_id": rid, "action": "continue", "score": 0,
                    "hard": [], "findings": [],
                    "note": f"fail-open: unreadable request ({e})",
-                   "roger": "Roger Tatu v1"}
+                   "roger": "Roger v1"}
     if req is not None:
         try:
             verdict = evaluate(req)
@@ -278,7 +278,7 @@ def handle_file(path):
             verdict = {"request_id": rid, "action": "continue", "score": 0,
                        "hard": [], "findings": [],
                        "note": f"fail-open: critic error {e}",
-                       "roger": "Roger Tatu v1"}
+                       "roger": "Roger v1"}
     verdict["request_id"] = rid
     _atomic_write(os.path.join(RESP, f"response_{rid}.json"), verdict)
     ledger_write({"ts": verdict.get("ts"), "id": rid,
@@ -334,7 +334,7 @@ def main(argv):
         except OSError as e:
             # flock refused: a second daemon means two writers on one spool.
             # Exit clean (rc 3) instead of dumping a traceback into the journal.
-            print(f"another Roger Tatu daemon already holds {BASE} ({e}) — exiting",
+            print(f"another Roger daemon already holds {BASE} ({e}) — exiting",
                   file=sys.stderr)
             return 3
     elif "--request" in argv:
@@ -350,7 +350,7 @@ def main(argv):
         for p in sorted(glob.glob(os.path.join(REQ, "request_*.json"))):
             handle_file(p)
     else:
-        print("usage: roger_tatu.py --daemon | --once | --request <file.json>")
+        print("usage: critic.py --daemon | --once | --request <file.json>")
 
 
 if __name__ == "__main__":

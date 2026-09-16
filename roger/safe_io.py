@@ -28,7 +28,7 @@ Canonical layout for a training run:
     persist dir  -> fast local filesystem (ext4 on WSL, never /mnt/*)
     mirror dir   -> optional second drive, written LAST and verified apart
 
-Environment: TATU_PERSIST, TATU_MIRROR, TATU_MIRROR_VERIFY.
+Environment: ROGER_PERSIST, ROGER_MIRROR, ROGER_MIRROR_VERIFY.
 """
 import hashlib
 import json
@@ -42,7 +42,7 @@ try:
 except ImportError:  # pragma: no cover - executed as a plain script
     import config as C
 
-PERSIST = C.cfg("PERSIST", "/tmp/tatu_ckpt_persist")
+PERSIST = C.cfg("PERSIST", "/tmp/roger_ckpt_persist")
 MIRROR = C.cfg("MIRROR")  # empty string disables mirroring entirely
 VERIFY = C.cfg("MIRROR_VERIFY", "1") not in ("0", "", "false", "False")
 
@@ -262,7 +262,7 @@ def mirror_step(directory, inflight_seconds=300):
 
 if __name__ == "__main__":  # tiny self-check, no deps
     import tempfile
-    d = tempfile.mkdtemp(prefix="tatu_safe_io_")
+    d = tempfile.mkdtemp(prefix="roger_safe_io_")
     p = os.path.join(d, "model.bin")
     publish(d, "model.bin", b"tensors" * 1000, expect_size=7000)
     assert verify(p)[0] == Result.OK, "roundtrip failed"

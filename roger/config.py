@@ -1,18 +1,18 @@
-"""Shared configuration for the Roger Tatu toolbelt.
+"""Shared configuration for the Roger toolbelt.
 
 Every path is derived from the environment — the code carries no personal
-usernames, drive letters or machine names. Set the TATU_* variables (or a
+usernames, drive letters or machine names. Set the ROGER_* variables (or a
 .env file read by your supervisor) and the whole fleet follows.
 
 Environment contract
 --------------------
-TATU_HOME       root for IPC spool/state      (default: ~/.tatu)
-TATU_TRAIN_LOG  append-only training log      (default: $TATU_HOME/train.log)
-TATU_PERSIST    canonical ext4 checkpoint dir (default: /tmp/tatu_ckpt_persist)
-TATU_MIRROR     optional second-drive mirror  (default: empty = disabled)
-TATU_PROC       cmdline pattern of the trainer process (default: run_train)
-TATU_END_BANNER regex marking legitimate completion (default: CONCLU|DONE)
-TATU_TMP        scratch/state dir for watchdogs (default: system temp)
+ROGER_HOME       root for IPC spool/state      (default: ~/.roger)
+ROGER_TRAIN_LOG  append-only training log      (default: $ROGER_HOME/train.log)
+ROGER_PERSIST    canonical ext4 checkpoint dir (default: /tmp/roger_ckpt_persist)
+ROGER_MIRROR     optional second-drive mirror  (default: empty = disabled)
+ROGER_PROC       cmdline pattern of the trainer process (default: run_train)
+ROGER_END_BANNER regex marking legitimate completion (default: CONCLU|DONE)
+ROGER_TMP        scratch/state dir for watchdogs (default: system temp)
 """
 import os
 import sys
@@ -20,11 +20,11 @@ import tempfile
 
 
 def _home() -> str:
-    return os.environ.get("TATU_HOME") or os.path.expanduser("~/.tatu")
+    return os.environ.get("ROGER_HOME") or os.path.expanduser("~/.roger")
 
 
 def cfg(name: str, default: str = "") -> str:
-    v = os.environ.get("TATU_" + name)
+    v = os.environ.get("ROGER_" + name)
     if v:
         return v
     if name == "ROOT":
@@ -32,7 +32,7 @@ def cfg(name: str, default: str = "") -> str:
     if name == "LOG":
         return os.path.join(_home(), "train.log")
     if name == "PERSIST":
-        return "/tmp/tatu_ckpt_persist"
+        return "/tmp/roger_ckpt_persist"
     if name == "PROC":
         return "run_train"
     if name == "END_BANNER":

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""IPC client for the Roger Tatu critic.
+"""IPC client for the Roger critic.
 
 Drops a request into the spool, waits for the daemon's response, and —
 critically — FAILS OPEN: a timeout prints a `continue` verdict instead of
@@ -7,17 +7,17 @@ blocking the caller. The training loop must never wait on its watchdog.
 
 Usage from the training harness (Python):
 
-    from tatu.roger_client import ask
+    from roger.roger_client import ask
     verdict = ask(step=1200, loss=3.91, grad=140, lr=2.1e-5,
                   vram=9.8, tok=430)
     if verdict["action"] != "continue":
         ...  # log loudly; do not crash
 
 CLI:
-    python -m tatu.roger_client --step 600 --loss 4.2 --grad 120 \\
+    python -m roger.roger_client --step 600 --loss 4.2 --grad 120 \\
         --lr 2.5e-5 --vram 9.9 --tok 430 --question "checkpoint 600"
 
-Environment: TATU_ROOT (spool root), plus TATU_TIMEOUT for the wait.
+Environment: ROGER_ROOT (spool root), plus ROGER_TIMEOUT for the wait.
 """
 import argparse
 import json
@@ -30,7 +30,7 @@ try:
 except ImportError:  # pragma: no cover - executed as a plain script
     import config as C
 
-BASE = os.path.expanduser(C.cfg("ROOT", os.path.expanduser("~/.tatu/roger")))
+BASE = os.path.expanduser(C.cfg("ROOT", os.path.expanduser("~/.roger/roger")))
 if not BASE.endswith("roger"):
     BASE = os.path.join(BASE, "roger")
 DEFAULT_TIMEOUT = int(C.cfg("TIMEOUT", "90"))
@@ -67,7 +67,7 @@ def submit(step, loss, grad=0, lr=0, vram=0, tok=0, question="",
                 pass  # daemon may be mid-write; keep polling
         time.sleep(2)
     return {"request_id": rid, "action": "continue", "fail_open": True,
-            "note": f"timeout {timeout}s waiting for Roger Tatu response"}
+            "note": f"timeout {timeout}s waiting for Roger response"}
 
 
 # Backwards-friendly alias
@@ -75,7 +75,7 @@ ask = submit
 
 
 def main(argv):
-    ap = argparse.ArgumentParser(description="Roger Tatu IPC client")
+    ap = argparse.ArgumentParser(description="Roger IPC client")
     ap.add_argument("--step", type=int, required=True)
     ap.add_argument("--loss", type=float, required=True)
     ap.add_argument("--grad", type=float, default=0)

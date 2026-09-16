@@ -3,7 +3,7 @@ __pycache__/
 *.pyc
 .env
 *.log
-.tatu/
+.roger/
 
 # watchdog/spool runtime artifacts
 *_state.txt

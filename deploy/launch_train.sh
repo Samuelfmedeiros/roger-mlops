@@ -26,7 +26,7 @@
 #   TRAIN_CMD  python invocation, appended to CFG  (required)
 #   LOG        append-only training log            (required)
 #   OUTDIR     checkpoint dir on the SLOW mount    (optional, enables staging)
-#   STAGE      local ext4 staging dir              (default /tmp/tatu_ckpt_persist)
+#   STAGE      local ext4 staging dir              (default /tmp/roger_ckpt_persist)
 #   STAGE_STEP step number to resume (else newest valid ckpt in OUTDIR/STAGE)
 #   VRAM_MAX_MIB launch only if used VRAM is below this (default 11000)
 #   MIN_FREE_STAGING_MIB host/guest free RAM needed before a 9p copy (default 3000)
@@ -37,7 +37,7 @@ TRAIN_DIR="${TRAIN_DIR:?TRAIN_DIR required}"
 TRAIN_CMD="${TRAIN_CMD:?TRAIN_CMD required (python invocation)}"
 LOG="${LOG:?LOG required}"
 PROC="${PROC:-$(printf '%s' "$TRAIN_CMD" | awk '{print $2}' | xargs -r basename)}"
-STAGE="${STAGE:-/tmp/tatu_ckpt_persist}"
+STAGE="${STAGE:-/tmp/roger_ckpt_persist}"
 LOCK_FILE="${LOCK_FILE:-${STAGE%/*}/.train.lock}"
 VRAM_MAX_MIB="${VRAM_MAX_MIB:-11000}"
 MIN_FREE_STAGING_MIB="${MIN_FREE_STAGING_MIB:-3000}"
@@ -120,7 +120,7 @@ fi
 
 if [ -n "$RESUME" ]; then
   echo "[$(date '+%F %T')] Resuming from $RESUME" | tee -a "$LOG"
-  export TATU_RESUME="$RESUME"
+  export ROGER_RESUME="$RESUME"
 fi
 
 # ── go ───────────────────────────────────────────────────────────────────

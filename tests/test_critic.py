@@ -2,7 +2,7 @@
 """Roger critic unit suite — simulated observations against the REAL critic.
 
 Two compatible shapes:
-- script:   python tests/test_roger_tatu.py   -> 9 labeled PASS/FAIL lines
+- script:   python tests/test_critic.py   -> 9 labeled PASS/FAIL lines
             + "=== n/9 PASS ===", exit 1 on any FAIL (the report Roger's
             gate parses).
 - discover: python -m unittest discover -s tests  -> same cases as unittest
@@ -20,7 +20,7 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROGER = os.path.join(os.path.dirname(HERE), "tatu", "roger_tatu.py")
+ROGER = os.path.join(os.path.dirname(HERE), "roger", "critic.py")
 
 HEALTHY = {"steps": [[40, 10.48, 120, 4e-5, 28, 4.12], [45, 10.46, 100, 4.5e-5, 28, 4.12],
                      [50, 10.4375, 202, 5e-5, 29, 4.12], [55, 10.3984, 96, 5e-5, 28, 4.12],
@@ -105,9 +105,9 @@ class TestRogerCritic(unittest.TestCase):
         # A half-written request file must fail OPEN as continue, never page
         # someone. Exercises the daemon's handle_file path directly.
         sys.path.insert(0, os.path.dirname(ROGER))
-        os.environ.setdefault("TATU_HOME", tempfile.mkdtemp(prefix="roger_home_"))
+        os.environ.setdefault("ROGER_HOME", tempfile.mkdtemp(prefix="roger_home_"))
         import importlib.util
-        spec = importlib.util.spec_from_file_location("roger_tatu_probe", ROGER)
+        spec = importlib.util.spec_from_file_location("critic_probe", ROGER)
         rt = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(rt)
         hdir = tempfile.mkdtemp(prefix="roger_spool_")

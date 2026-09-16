@@ -1,0 +1,36 @@
+# Roger — deterministic training critic daemon.
+#
+# User unit (no root). Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp roger.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now roger.service
+#   journalctl --user -u roger -f
+#
+# Keep it running after logout (needed on WSL with no login session):
+#   loginctl enable-linger $USER
+#
+# Paths live in Environment=, never baked into the Python file.
+
+[Unit]
+Description=Roger - deterministic training critic (file IPC, fail-open)
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.roger/roger/critic.py --daemon
+Environment=ROGER_HOME=%h/.roger
+Environment=ROGER_LOG=%h/.roger/train.log
+Environment=ROGER_PROC=run_train
+Environment=ROGER_PERSIST=/tmp/roger_ckpt_persist
+Environment=ROGER_GATE=85
+Restart=always
+RestartSec=5
+# The critic must never take the box down with it.
+Nice=10
+MemoryMax=300M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

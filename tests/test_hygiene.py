@@ -1,4 +1,4 @@
-"""Unit tests for tatu.hygiene — the orchestrator guards, each tied to a
+"""Unit tests for roger.hygiene — the orchestrator guards, each tied to a
 historical incident it kills. Run: python3 -m unittest discover tests"""
 import os
 import sys
@@ -7,7 +7,7 @@ import unittest
 from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tatu import hygiene as H  # noqa: E402
+from roger import hygiene as H  # noqa: E402
 
 
 class TestQuarantine(unittest.TestCase):

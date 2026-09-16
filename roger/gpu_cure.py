@@ -32,9 +32,9 @@ any localized) Windows does not always emit WSAETIMEDOUT — it can return a
 *translated* message, sometimes with rc=0. Never classify on error text;
 classify on the sentinel you appended.
 
-Run:  python -m tatu.gpu_cure            (foreground loop)
-Env:  TATU_TRAIN_LOG, TATU_PROC, TATU_BENCH, TATU_BENCH_OUT, TATU_LAUNCHER,
-      TATU_STALE_S, TATU_CADENCE_S, TATU_BENCH_MIN, TATU_INTERVAL_S
+Run:  python -m roger.gpu_cure            (foreground loop)
+Env:  ROGER_TRAIN_LOG, ROGER_PROC, ROGER_BENCH, ROGER_BENCH_OUT, ROGER_LAUNCHER,
+      ROGER_STALE_S, ROGER_CADENCE_S, ROGER_BENCH_MIN, ROGER_INTERVAL_S
 """
 import json
 import os
@@ -61,10 +61,10 @@ SETTLE_S = int(C.cfg("SETTLE_S", "300"))       # let a fresh launch stabilise
 TRAIN_LOG = C.cfg("TRAIN_LOG")
 PROC = C.cfg("PROC", "run_train")
 BENCH = C.cfg("BENCH")                       # guest-readable path to bench script
-BENCH_OUT = C.cfg("BENCH_OUT") or C.tmp_file("tatu_cudabench.json")
+BENCH_OUT = C.cfg("BENCH_OUT") or C.tmp_file("roger_cudabench.json")
 LAUNCHER = C.cfg("LAUNCHER")
-WLOG = C.tmp_file("tatu_gpu_cure.log")
-ILOG = C.tmp_file("tatu_gpu_incidents.log")
+WLOG = C.tmp_file("roger_gpu_cure.log")
+ILOG = C.tmp_file("roger_gpu_incidents.log")
 
 
 def log(msg, to_incident=False):
@@ -147,7 +147,7 @@ def gpu_power_w():
 def run_bench():
     """Throughput referee. Returns TFLOPS or None (None = not measured)."""
     if not BENCH:
-        log("TATU_BENCH not set — cannot arbitrate with throughput")
+        log("ROGER_BENCH not set — cannot arbitrate with throughput")
         return None
     try:
         wsl(f"timeout 120 python3 {BENCH} --out {BENCH_OUT}", timeout=150)
@@ -240,7 +240,7 @@ def tick():
 
 def main():
     if not TRAIN_LOG:
-        print("TATU_TRAIN_LOG is not set — nothing to watch.")
+        print("ROGER_TRAIN_LOG is not set — nothing to watch.")
         return 2
     log(f"=== gpu-cure watchdog up (stale {STALE_S//60}min, cadence {CADENCE_S//60}min, "
         f"bench<{BENCH_MIN} TFLOPS arbitrates, cycle {INTERVAL//60}min) ===")

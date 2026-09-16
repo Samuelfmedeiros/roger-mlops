@@ -31,8 +31,8 @@ The five guards, each earned by a real incident:
 Stdout is the alert channel (a cron `no_agent` job delivers it to chat);
 silence means healthy. Local logging goes to a dedicated timestamped file.
 
-Environment: TATU_LOG, TATU_PROC, TATU_END_BANNER, TATU_LAUNCHER,
-TATU_LOCKFILE, TATU_PYSPY, TATU_TMP, plus the TATU_* tuning knobs below.
+Environment: ROGER_LOG, ROGER_PROC, ROGER_END_BANNER, ROGER_LAUNCHER,
+ROGER_LOCKFILE, ROGER_PYSPY, ROGER_TMP, plus the ROGER_* tuning knobs below.
 """
 import json
 import os
@@ -62,13 +62,13 @@ ALERT_GAP_MIN = int(C.cfg("ALERT_GAP_MIN", "60"))     # per-category anti-spam
 CRASH_LOOP_RESUMES = int(C.cfg("CRASH_LOOP", "3"))
 RELAUNCH_CONFIRM_S = int(C.cfg("RELAUNCH_CONFIRM_S", "45"))
 
-WLOG = C.tmp_file("tatu_night_watch.log")
-ILOG = C.tmp_file("tatu_train_incidents.log")
-ALERT_STATE = C.tmp_file("tatu_alert_state.txt")
-MAXSTEP_STATE = C.tmp_file("tatu_max_step.txt")
-WATCH_STATE = C.tmp_file("tatu_watch_state.json")
+WLOG = C.tmp_file("roger_night_watch.log")
+ILOG = C.tmp_file("roger_train_incidents.log")
+ALERT_STATE = C.tmp_file("roger_alert_state.txt")
+MAXSTEP_STATE = C.tmp_file("roger_max_step.txt")
+WATCH_STATE = C.tmp_file("roger_watch_state.json")
 
-SENTINEL = "__TATU_MEASURED__"
+SENTINEL = "__ROGER_MEASURED__"
 RE_STEP = re.compile(r"Step\s+(\d+)/(\d+)")
 
 
@@ -371,7 +371,7 @@ def kill_group(pid):
 
 def main():
     if not LAUNCHER:
-        print("TATU_LAUNCHER is not set — the watchdog cannot relaunch anything.")
+        print("ROGER_LAUNCHER is not set — the watchdog cannot relaunch anything.")
         return 2
     if crash_loop_watch():
         return 0

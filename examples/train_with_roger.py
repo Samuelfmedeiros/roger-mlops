@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Minimal trainer wired to the Roger Tatu critic.
+"""Minimal trainer wired to the Roger critic.
 
 Shows the integration contract in ~40 lines: the critic is advisory, it must
 never raise into the training loop, and it must never be able to wedge a step.
@@ -14,7 +14,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from tatu import roger_client  # noqa: E402
+from roger import roger_client  # noqa: E402
 
 
 def fake_step(step, total):

@@ -31,19 +31,19 @@ Zero dependências. Agnóstico de modelo. Cada guarda carrega um teste unitário
 
 | Sintoma (silencioso sem guarda) | Guarda | Módulo |
 |---|---|---|
-| Ponte NVML `found a PCI device but no GPUs found` após sleep/hibernação; guest saudável pra sempre | Cura do lado host: sonda via ponte, `wsl --shutdown` cirúrgico + relançamento, arbitragem de TFLOPS reais antes de confiar no canal | `tatu/gpu_cure.py`, `scripts/cuda_tflops_bench.py` |
-| Processo de treino vivo porém travado: CPU 100%, log congelado, GPU 0 | Mate-zumbi com orçamento de relançamento; detecção de regressão de passo; breaker de loop de queda | `tatu/night_watch.py` |
+| Ponte NVML `found a PCI device but no GPUs found` após sleep/hibernação; guest saudável pra sempre | Cura do lado host: sonda via ponte, `wsl --shutdown` cirúrgico + relançamento, arbitragem de TFLOPS reais antes de confiar no canal | `roger/gpu_cure.py`, `scripts/cuda_tflops_bench.py` |
+| Processo de treino vivo porém travado: CPU 100%, log congelado, GPU 0 | Mate-zumbi com orçamento de relançamento; detecção de regressão de passo; breaker de loop de queda | `roger/night_watch.py` |
 | Host reporta "2 GB usados pelo WSL" — OOM mascarado em memória compartilhada | Sonda da verdade do host: enumera processos da VM, soma WS, atribui VRAM por processo | `scripts/host_vram_probe.ps1` |
-| Checkpoint truncado em voo no 9p/drvfs e o resume passa por cima do lixo | `.part` + fsync + verificação por leitura + `os.replace`; quarentena fora do glob dos resolvers | `tatu/safe_io.py`, `scripts/quarantine.py` |
-| Crítico via HTTP/JSON: frágil, muralha de auth, timeout | IPC por arquivo em ext4 com flock, modo one-shot, veredictos fail-open, ledger append-only | `tatu/roger_tatu.py`, `tatu/roger_client.py` |
-| Um loop de agente herda o 100/100 de ontem porque o arquivo de estado sobreviveu à campanha | Fingerprint de campanha (git HEAD) + reconciliação de estado + detecção de regressão | `tatu/hygiene.py` |
-| A saída de ferramenta do repo auditado injeta instruções no seu agente | Quarentena de conteúdo não confiável (cercas, caracteres de controle, truncamento) | `tatu/hygiene.py` |
+| Checkpoint truncado em voo no 9p/drvfs e o resume passa por cima do lixo | `.part` + fsync + verificação por leitura + `os.replace`; quarentena fora do glob dos resolvers | `roger/safe_io.py`, `scripts/quarantine.py` |
+| Crítico via HTTP/JSON: frágil, muralha de auth, timeout | IPC por arquivo em ext4 com flock, modo one-shot, veredictos fail-open, ledger append-only | `roger/critic.py`, `roger/roger_client.py` |
+| Um loop de agente herda o 100/100 de ontem porque o arquivo de estado sobreviveu à campanha | Fingerprint de campanha (git HEAD) + reconciliação de estado + detecção de regressão | `roger/hygiene.py` |
+| A saída de ferramenta do repo auditado injeta instruções no seu agente | Quarentena de conteúdo não confiável (cercas, caracteres de controle, truncamento) | `roger/hygiene.py` |
 
 ## Arquitetura
 
 ```
  treinador (qualquer framework, qualquer máquina)
-   |  checkpoints atômicos + verificados ....... tatu/safe_io.py
+   |  checkpoints atômicos + verificados ....... roger/safe_io.py
    |  pergunta "devo continuar?" (não bloqueante, fail-open 90s)
    v
  daemon crítico Roger  <── IPC por arquivo, flock em ext4, nunca 9p/HTTP
@@ -64,7 +64,7 @@ Sem dependências. Python 3.10+ de cada lado da ponte.
 ```bash
 git clone <este-repo> && cd roger-mlops
 cp .env.example ~/.config/roger.env   # edite os paths para o seu layout
-export TATU_HOME=$HOME/.tatu TATU_TRAIN_LOG=$HOME/.tatu/train.log
+export ROGER_HOME=$HOME/.roger ROGER_TRAIN_LOG=$HOME/.roger/train.log
 python3 -m unittest discover -s tests -v   # tudo verde antes de confiar
 ```
 
@@ -72,20 +72,20 @@ As units systemd de usuário estão em `deploy/`:
 
 ```bash
 mkdir -p ~/.config/systemd/user
-cp deploy/roger-tatu.service deploy/keepalive.service ~/.config/systemd/user/
-systemctl --user daemon-reload && systemctl --user enable --now roger-tatu keepalive
+cp deploy/roger.service deploy/keepalive.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now roger keepalive
 ```
 
 ## Comandos
 
 | Comando | O que faz |
 |---|---|
-| `python3 tatu/roger_tatu.py --daemon` | Roda o daemon crítico (IPC por arquivo, spool com flock) |
-| `python3 tatu/roger_tatu.py --once` | Drena requisições pendentes uma vez (amigável a cron, sem daemon) |
-| `python3 tatu/roger_client.py ask --project NOME --log PATH [--dry-run]` | Pede veredito; imprime `VERDICT=`/`SCORE=`; fail-open |
-| `python3 tatu/night_watch.py --once` | Um check de zumbi/regressão/loop; mata + relança |
-| `python3 tatu/gpu_cure.py --probe-only` | Classifica o estado da ponte GPU sem curar |
-| `python3 tatu/hygiene.py` | Self-test de toda guarda de orquestrador |
+| `python3 roger/critic.py --daemon` | Roda o daemon crítico (IPC por arquivo, spool com flock) |
+| `python3 roger/critic.py --once` | Drena requisições pendentes uma vez (amigável a cron, sem daemon) |
+| `python3 roger/roger_client.py ask --project NOME --log PATH [--dry-run]` | Pede veredito; imprime `VERDICT=`/`SCORE=`; fail-open |
+| `python3 roger/night_watch.py --once` | Um check de zumbi/regressão/loop; mata + relança |
+| `python3 roger/gpu_cure.py --probe-only` | Classifica o estado da ponte GPU sem curar |
+| `python3 roger/hygiene.py` | Self-test de toda guarda de orquestrador |
 | `python3 scripts/quarantine.py move DIR CKPT` | Tira um checkpoint suspeito do glob dos resolvers |
 | `python3 scripts/cuda_tflops_bench.py` | Mede TFLOPS reais (o árbitro de throughput da GPU) |
 | `pwsh scripts/host_vram_probe.ps1` | Verdade do host: working set da VM + VRAM por processo |
@@ -94,7 +94,7 @@ systemctl --user daemon-reload && systemctl --user enable --now roger-tatu keepa
 ## Contrato do crítico
 
 Requisições e veredictos são JSON via arquivos `request_*.json` (schema em
-`tatu/roger_tatu.py`); os checks determinísticos cobrem as curvas que um humano
+`roger/critic.py`); os checks determinísticos cobrem as curvas que um humano
 olharia às 03:00 — LR vs o schedule cosseno declarado, explosão de gradiente,
 velocidade de loss, deriva de campos (ex.: `|A_log|`), tok/s, VRAM,
 estagnação do log, presença do processo — cada um com peso e gate. Se você
