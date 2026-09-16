@@ -10,3 +10,4 @@ __pycache__/
 *_state.json
 max_step.txt
 ledger.jsonl
+loop.json

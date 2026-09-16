@@ -131,6 +131,10 @@ Roger started as one thing in one project and grew into a family of two reposito
 
 Both are model-agnostic, dependency-free, and share the verdict contract so a critic written for one plugs into the other.
 
+
+## Dogfooding the Roger family
+
+Roger-mlops uses Roger-loop as a real guard dog: a loop.json file in this repository configures the orchestrator to monitor the critic's health (ledger freshness, verdict consistency) and react via the same contract used here. This way the guards guard themselves - zero dependencies, model-agnostic, and fully self-hosted.
 ## License
 
 MIT — see [LICENSE](LICENSE).
