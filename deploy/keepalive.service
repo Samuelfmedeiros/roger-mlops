@@ -1,0 +1,16 @@
+[Unit]
+Description=Tatu keepalive - relaunch a resume-safe trainer if it dies
+After=multi-user.target
+
+[Service]
+Type=simple
+# Set the real paths for your box; nothing is baked into the scripts.
+Environment=LOG=%h/.tatu/train.log
+Environment=PROC=run_train
+Environment=LAUNCHER=%h/.tatu/launch_train.sh
+ExecStart=/bin/bash %h/.tatu/keepalive.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

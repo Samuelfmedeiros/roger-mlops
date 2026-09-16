@@ -1,0 +1,12 @@
+# local state and caches
+__pycache__/
+*.pyc
+.env
+*.log
+.tatu/
+
+# watchdog/spool runtime artifacts
+*_state.txt
+*_state.json
+max_step.txt
+ledger.jsonl

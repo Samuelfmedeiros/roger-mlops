@@ -1,0 +1,36 @@
+# Roger Tatu — deterministic training critic daemon.
+#
+# User unit (no root). Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp roger-tatu.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now roger-tatu.service
+#   journalctl --user -u roger-tatu -f
+#
+# Keep it running after logout (needed on WSL with no login session):
+#   loginctl enable-linger $USER
+#
+# Paths live in Environment=, never baked into the Python file.
+
+[Unit]
+Description=Roger Tatu - deterministic training critic (file IPC, fail-open)
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.tatu/roger/roger_tatu.py --daemon
+Environment=TATU_HOME=%h/.tatu
+Environment=TATU_LOG=%h/.tatu/train.log
+Environment=TATU_PROC=run_train
+Environment=TATU_PERSIST=/tmp/tatu_ckpt_persist
+Environment=TATU_GATE=85
+Restart=always
+RestartSec=5
+# The critic must never take the box down with it.
+Nice=10
+MemoryMax=300M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
