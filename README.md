@@ -11,7 +11,7 @@
 
 <h1 align="center">Roger — Resilient Local MLOps</h1>
 
-<p align="center"><strong>The trench engineering behind 72-hour unattended GPU training runs</strong> — deterministic critic, watchdogs that act, and crash-safe I/O for WSL2/edge boxes.</p>
+<p align="center"><strong>Keeps long unattended GPU training runs honest on WSL2 and edge hardware</strong> — a deterministic critic, watchdogs that act, and crash-safe checkpoint I/O. Zero dependencies, model-agnostic.</p>
 
 > 🌐 **English** · [🇧🇷 Português](README.pt-BR.md)
 

@@ -11,7 +11,7 @@
 
 <h1 align="center">Roger — MLOps local resiliente</h1>
 
-<p align="center"><strong>A engenharia de trincheira por trás de corridas de treino GPU de 72 horas sem supervisão</strong> — crítico determinístico, watchdogs que agem e I/O à prova de queda para máquinas WSL2/edge.</p>
+<p align="center"><strong>Mantém corridas longas de treino de GPU sem supervisão honestas em WSL2 e hardware edge</strong> — crítico determinístico, watchdogs que agem e I/O de checkpoint à prova de queda. Zero dependências, agnóstico de modelo.</p>
 
 > 🇧🇷 **Português** · [🌐 English](README.md)
 
