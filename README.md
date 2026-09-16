@@ -15,7 +15,17 @@
 
 > 🌐 **English** · [🇧🇷 Português](README.pt-BR.md)
 
-Training small models on a gaming PC running Linux via WSL2 does not fail loudly. It fails by going quiet: a silent 0% GPU utilization, a checkpoint that exists but is 3 bytes short, a critic that grades 0 because the bridge hiccuped, a loop that "converges" over a defect that already flapped back. **Roger is the set of guards that make each of those failure modes loud, recoverable, or impossible** — zero dependencies, pure Python, model-agnostic.
+Long unattended GPU training on a Windows + WSL2 workstation fails where nobody is watching: the trainer stays alive while its log stops, the NVML bridge dies on sleep/hibernate, a checkpoint resumes past a truncated save, and an agent loop happily inherits yesterday's perfect score. None of it raises an error at 03:00 — the run just quietly gets worse.
+
+Roger is the guard layer that turns each of those into a **handled event**:
+
+- a **deterministic critic** that scores the run against the curves you declared (LR vs schedule, gradient norm, loss velocity, tokens/s, VRAM, log staleness) and files every verdict with its evidence in an append-only ledger;
+- **watchdogs that act** — kill a wedged trainer and relaunch it from the last good checkpoint, under a relaunch budget with a crash-loop breaker;
+- a **GPU-PV bridge cure** that performs the surgical WSL2 restart the guest can never request for itself;
+- **crash-safe checkpoint I/O** built for 9p/drvfs: a save either exists complete or does not exist — the half-written state that corrupts resumes is removed from the possible;
+- **orchestrator hygiene** that keeps agentic loops honest: untrusted tool output quarantined as data, per-campaign state fingerprinting, regression and inconclusive-round sentinels.
+
+Zero dependencies. Model-agnostic. Every guard carries a unit test written against the incident that produced it. If you train on your own hardware, this is the reliability layer your scheduler should have shipped with.
 
 ## The failure modes, and the guard that kills each
 

@@ -15,7 +15,17 @@
 
 > 🇧🇷 **Português** · [🌐 English](README.md)
 
-Treinar modelos pequenos num PC gamer rodando Linux via WSL2 não falha aos berros. Falha ficando quieto: GPU em 0% silencioso, checkpoint que existe mas está 3 bytes curto, crítico que dá nota 0 porque a ponte engasgou, loop que "converge" sobre um defeito que já reabriu. **Roger é o conjunto de guardas que torna cada um desses modos de falha alto, recuperável ou impossível** — zero dependências, Python puro, agnóstico de modelo.
+Treino longo de GPU sem supervisão numa estação Windows + WSL2 falha onde ninguém está olhando: o treinador fica vivo enquanto o log para, a ponte NVML morre no sleep/hibernação, o checkpoint retoma por cima de um save truncado, e o loop de agente herda de manhã a nota perfeita de ontem. Nada disso gera erro às 03:00 — a corrida só piora em silêncio.
+
+Roger é a camada de guardas que transforma cada um desses em **evento tratado**:
+
+- um **crítico determinístico** que pontua a corrida contra as curvas que você declarou (LR vs schedule, norma de gradiente, velocidade de loss, tokens/s, VRAM, estagnação do log) e arquiva cada veredito com sua evidência num ledger append-only;
+- **watchdogs que agem** — matam o treinador travado e relançam do último checkpoint bom, sob orçamento de relançamento com breaker de loop de queda;
+- uma **cura da ponte GPU-PV** que executa o reinício cirúrgico do WSL2 que o guest nunca pode pedir para si mesmo;
+- **I/O de checkpoint à prova de queda** feito para 9p/drvfs: um save ou existe completo ou não existe — o estado meio-escrito que corrompe o resume sai do campo do possível;
+- **higiene de orquestrador** que mantém o loop de agente honesto: saída de ferramenta não confiável quarentenada como dado, fingerprint de estado por campanha, sentinelas de regressão e de rodada inconclusiva.
+
+Zero dependências. Agnóstico de modelo. Cada guarda carrega um teste unitário escrito contra o incidente que a gerou. Se você treina no seu próprio hardware, esta é a camada de confiabilidade que seu escalador deveria ter trazido desde o primeiro dia.
 
 ## Os modos de falha, e a guarda que mata cada um
 
